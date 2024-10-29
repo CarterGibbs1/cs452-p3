@@ -5,6 +5,9 @@
 #include <stdio.h>
 #include "lab.h"
 
+// Debug methods
+void printArr(int A[], int n);
+
 typedef struct mergesort_s_args {
     void *A;
     int p;
@@ -40,20 +43,35 @@ static void insertion_sort(int A[], int p, int r)
 void mergesort_mt(int A[], int n, int num_thread) {
     // Create threads
     pthread_t threads[num_thread];
-    mergesort_s_args *arguments = (mergesort_s_args*) malloc(sizeof(mergesort_s_args));
-    int chunk_size = floor(n / num_thread);
+    mergesort_s_args **arguments = (mergesort_s_args**) malloc(num_thread * sizeof(mergesort_s_args*));
+    int chunk_size = n / num_thread;
+    printf("Start:\n");
+    printArr(A, n);
     for (int i = 0; i < num_thread; i++) {
-        arguments->A = A;
-        arguments->p = i * chunk_size;
-        arguments->r = (i+1) * chunk_size - 1;
-        pthread_create(&threads[i], NULL, mergesort_mt_to_s, (void *) arguments);
+        arguments[i] = (mergesort_s_args*) malloc(sizeof(mergesort_s_args));
+        arguments[i]->A = A;
+        arguments[i]->p = floor(i * chunk_size);
+        arguments[i]->r = (i != num_thread - 1) ? floor((i+1) * chunk_size - 1) : n - 1;
+        //printf("Arguments: %d, %d\n", arguments->p, arguments->r);
+        pthread_create(&threads[i], NULL, mergesort_mt_to_s, (void *) arguments[i]);
     }
 
     // Join threads
+    int p, q, r;
     for (int i = 0; i < num_thread; i++) {
         pthread_join(threads[i], NULL);
+        free(arguments[i]);
+
+        if (i == 0) continue;
+        p = 0;
+        q = i * chunk_size;
+        r = (i != num_thread - 1) ? floor((i+1) * chunk_size - 1) : n - 1;
+
+        merge_s(A, p, q, r);
     }
 
+    printf("End:\n");
+    printArr(A, n);
     free(arguments);
 }
 
@@ -142,4 +160,11 @@ double getMilliSeconds()
   struct timeval now;
   gettimeofday(&now, (struct timezone *)0);
   return (double)now.tv_sec * 1000.0 + now.tv_usec / 1000.0;
+}
+
+// Debug Methods
+
+void printArr(int A[], int n) {
+    for (int i = 0; i < n; i++) printf("%d, ", A[i]);
+    printf("\n\n");
 }
