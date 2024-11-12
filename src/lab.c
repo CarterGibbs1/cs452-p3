@@ -106,6 +106,13 @@ void merge_sorted_arrays(merge_arguments *args) {
 }
 
 void mergesort_mt(int A[], int n, int num_thread) {
+
+    // Check exception issue
+    if (num_thread == 0) {
+        fprintf(stderr, "Number of threads cannot equal 0.\n");
+        exit(1);
+    }
+
     // Create threads
     pthread_t threads[num_thread];
     mergesort_s_args **arguments = (mergesort_s_args**) malloc(num_thread * sizeof(mergesort_s_args*));
@@ -120,30 +127,32 @@ void mergesort_mt(int A[], int n, int num_thread) {
     }
 
     // Join threads
-    //int p, q, r;
+    int p, q, r;
     for (int i = 0; i < num_thread; i++) {
         pthread_join(threads[i], NULL);
         free(arguments[i]);
 
-        /**
         if (i == 0) continue;
         p = 0;
-        q = i * chunk_size;
+        q = i * chunk_size - 1;
         r = (i != num_thread - 1) ? floor((i+1) * chunk_size - 1) : n - 1;
 
         merge_s(A, p, q, r);
-         */
     }
 
+    /**
     merge_arguments *merge_args = (merge_arguments *) malloc(sizeof(merge_arguments));
     merge_args->array = A;
     merge_args->n = n;
     merge_args->num_arrays = num_thread;
 
     merge_sorted_arrays(merge_args);
+    
+    
+    free(merge_args);
+    */
 
     free(arguments);
-    free(merge_args);
 }
 
 void* mergesort_mt_to_s(void *arguments) {
