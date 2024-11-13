@@ -9,19 +9,11 @@
 // Debug methods
 void printArr(int A[], int n);
 
-typedef struct mergesort_s_args {
-    void *A;
-    int p;
-    int r;
-} mergesort_s_args;
-
 typedef struct merge_arguments {
     int n;  // size of array
     int num_arrays; // equal to num threads
     int* array;
 } merge_arguments;
-
-void* mergesort_mt_to_s(void *);
 
 /**
  * @brief Standard insertion sort that is faster than merge sort for small array's
@@ -113,17 +105,22 @@ void mergesort_mt(int A[], int n, int num_thread) {
         exit(1);
     }
 
+    if (num_thread > MAX_THREADS) {
+        fprintf(stderr, "Number of threads exceeds maximum number of threads allowed. Defaulting to 32.\n");
+        num_thread = 32;
+    }
+
     // Create threads
     pthread_t threads[num_thread];
-    mergesort_s_args **arguments = (mergesort_s_args**) malloc(num_thread * sizeof(mergesort_s_args*));
+    struct parallel_args **arguments = (struct parallel_args**) malloc(num_thread * sizeof(struct parallel_args*));
     int chunk_size = n / num_thread;
     for (int i = 0; i < num_thread; i++) {
-        arguments[i] = (mergesort_s_args*) malloc(sizeof(mergesort_s_args));
+        arguments[i] = (struct parallel_args*) malloc(sizeof(struct parallel_args));
         arguments[i]->A = A;
-        arguments[i]->p = floor(i * chunk_size);
-        arguments[i]->r = (i != num_thread - 1) ? floor((i+1) * chunk_size - 1) : n - 1;
+        arguments[i]->start = floor(i * chunk_size);
+        arguments[i]->end = (i != num_thread - 1) ? floor((i+1) * chunk_size - 1) : n - 1;
         //printf("Arguments: %d, %d\n", arguments->p, arguments->r);
-        pthread_create(&threads[i], NULL, mergesort_mt_to_s, (void *) arguments[i]);
+        pthread_create(&threads[i], NULL, parallel_mergesort, (void *) arguments[i]);
     }
 
     // Join threads
@@ -155,10 +152,10 @@ void mergesort_mt(int A[], int n, int num_thread) {
     free(arguments);
 }
 
-void* mergesort_mt_to_s(void *arguments) {
-    mergesort_s_args *mergesort_args = (mergesort_s_args*) arguments;
+void* parallel_mergesort(void *arguments) {
+    struct parallel_args *args = (struct parallel_args*) arguments;
     //printf("%d, %d\n", mergesort_args->p, mergesort_args->r);
-    mergesort_s(mergesort_args->A, mergesort_args->p, mergesort_args->r);
+    mergesort_s(args->A, args->start, args->end);
     return NULL;
 }
 
@@ -240,6 +237,33 @@ double getMilliSeconds()
   struct timeval now;
   gettimeofday(&now, (struct timezone *)0);
   return (double)now.tv_sec * 1000.0 + now.tv_usec / 1000.0;
+}
+
+int myMain(int argc, char **argv)
+{
+
+  if (argc < 3)
+    {
+      printf("usage: %s <array_size> <num_threads>\n", argv[0]);
+      return 1;
+    }
+  int size = atoi(argv[1]);
+  int t = atoi(argv[2]);
+
+  int *A_ = malloc(sizeof(int) *size);
+  srandom(1);
+  for (int i = 0; i < size; i++)
+    A_[i] = random() % 100000;
+
+  double end = 0;
+  double start = getMilliSeconds();
+  mergesort_mt(A_, size, t);
+  end = getMilliSeconds();
+  printf("%f %d\n",end-start, t);
+
+  free(A_);
+
+  return 0;
 }
 
 // Debug Methods
